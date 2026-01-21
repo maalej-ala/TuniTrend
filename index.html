@@ -1005,17 +1005,24 @@ const db = firebase.firestore();
 
         // ---- Success ----
         sessionStorage.removeItem('active_coupon');
+        // Make sure your Firestore security rules allow this update:
+        // Allow users to update isUsed and usedAt fields for their coupon document
+        let couponUpdateSuccess = false;
         try {
             await db.collection('coupons').doc(coupon).update({
                 isUsed: true,
                 usedAt: new Date()
             });
+            couponUpdateSuccess = true;
             console.log(`Coupon ${coupon} marked as used in Firestore.`);
         } catch (firebaseError) {
             console.error('Error updating coupon in Firestore:', firebaseError);
-            // optionally show a warning to the user
+            // Show a visible warning to the user if coupon update fails
+            alert('Order placed, but coupon status was not updated in Firestore. Please contact support or check your Firestore rules.');
         }
-        alert('Order placed successfully! Thank you for your purchase.');
+        if (couponUpdateSuccess) {
+            alert('Order placed successfully! Thank you for your purchase.');
+        }
 
         if (mode === 'single') {
             closeProductModal();
