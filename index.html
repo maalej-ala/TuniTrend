@@ -4,6 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TuniTrend - Exclusive Deals Just for You</title>
+    <!-- Firebase App (modular SDK) -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = {
+  apiKey: "AIzaSyDHd-sEJ4DFS_39o24cObvDcxFL4GQHxbI",
+  authDomain: "tunitrend.firebaseapp.com",
+  projectId: "tunitrend",
+  storageBucket: "tunitrend.firebasestorage.app",
+  messagingSenderId: "454861190568",
+  appId: "1:454861190568:web:14acdba71604065e6fd99d",
+  measurementId: "G-N9F4WTJ3MB"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+</script>
     <style>
         * {
             margin: 0;
@@ -987,9 +1004,17 @@
         }
 
         // ---- Success ----
-        localStorage.setItem('coupon_used_' + coupon, 'yes');
         sessionStorage.removeItem('active_coupon');
-
+        try {
+            await db.collection('coupons').doc(coupon).update({
+                isUsed: true,
+                usedAt: new Date()
+            });
+            console.log(`Coupon ${coupon} marked as used in Firestore.`);
+        } catch (firebaseError) {
+            console.error('Error updating coupon in Firestore:', firebaseError);
+            // optionally show a warning to the user
+        }
         alert('Order placed successfully! Thank you for your purchase.');
 
         if (mode === 'single') {
@@ -1125,84 +1150,7 @@
                 </form>
                 `;
             }
-        // Cart checkout order submission
-        async function submitCartOrder(event) {
-            event.preventDefault();
-            let name = document.getElementById('cart-customer-name').value.trim();
-            if (!name.toLowerCase().startsWith('coupon')) {
-                name = 'coupon ' + name;
-            }
-            const phone = document.getElementById('cart-customer-phone').value.trim();
-            const address = document.getElementById('cart-customer-address').value.trim();
-            const city = document.getElementById('cart-customer-city').value.trim();
-
-            // Validation
-            let valid = true;
-            document.getElementById('cart-name-error').textContent = '';
-            document.getElementById('cart-phone-error').textContent = '';
-
-            if (!name) {
-                document.getElementById('cart-name-error').textContent = 'Name is required';
-                valid = false;
-            }
-            if (!phone || !/^\d{8,}$/.test(phone.replace(/\s+/g, ''))) {
-                document.getElementById('cart-phone-error').textContent = 'Please enter a valid phone number';
-                valid = false;
-            }
-            if (!valid) return;
-
-            // Get coupon from sessionStorage or coupon input
-            let coupon = sessionStorage.getItem('active_coupon');
-            if (!coupon) {
-                coupon = document.getElementById('coupon-input') ? document.getElementById('coupon-input').value.trim().toUpperCase() : null;
-            }
-            if (!coupon) {
-                alert('Coupon code session lost. Please reload and enter your code again.');
-                return;
-            }
-
-            // Prepare cart payload
-            const cartPayload = cart.map(item => ({
-                product: item._id,
-                quantity: item.quantity,
-                selectedVariants: []
-            }));
-
-            const orderPayload = {
-                customer: {
-                    name: name,
-                    phone: phone,
-                    address: address,
-                    city: city,
-                    coupon: coupon
-                },
-                cart: cartPayload
-            };
-
-            try {
-                const response = await fetch(`${API_BASE}/order`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(orderPayload)
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    localStorage.setItem('coupon_used_' + coupon, 'yes');
-                    sessionStorage.removeItem('active_coupon');
-                    alert('Order placed successfully! Thank you for your purchase.');
-                    cart = [];
-                    updateCartCount();
-                    closeCart();
-                } else {
-                    alert('Error placing order: ' + (result.message || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error submitting order:', error);
-                alert('Error submitting order. Please try again.');
-            }
-        }
+        
         }
 
         function updateQty(idx, change) {
@@ -1233,33 +1181,33 @@
             if (e.target === this) closeProductModal();
         });
 
-        // 20 unique coupon codes
-        const COUPON_CODES = [
-          "TUNI-1A2B3C", "TUNI-4D5E6F", "TUNI-7G8H9I", "TUNI-J1K2L3", "TUNI-M4N5O6",
-          "TUNI-P7Q8R9", "TUNI-S1T2U3", "TUNI-V4W5X6", "TUNI-Y7Z8A9", "TUNI-B1C2D3",
-          "TUNI-E4F5G6", "TUNI-H7I8J9", "TUNI-K1L2M3", "TUNI-N4O5P6", "TUNI-Q7R8S9",
-          "TUNI-T1U2V3", "TUNI-W4X5Y6", "TUNI-Z7A8B9", "TUNI-C1D2E3", "TUNI-F4G5H6"
-        ];
+                // COUPON_CODES array removed; now using Firestore for coupon validation
 
-        function checkCoupon() {
-            const input = document.getElementById('coupon-input').value.trim().toUpperCase();
-            const errorDiv = document.getElementById('coupon-error');
-            if (!input) {
-                errorDiv.textContent = 'Please enter a coupon code.';
-                return;
-            }
-            if (!COUPON_CODES.includes(input)) {
-                errorDiv.textContent = 'Invalid coupon code.';
-                return;
-            }
-            if (localStorage.getItem('coupon_used_' + input)) {
-                errorDiv.textContent = 'This coupon has already been used on this device.';
-                return;
-            }
-            // Valid and unused
-            document.getElementById('coupon-section').style.display = 'none';
-            document.querySelector('.container').style.display = '';
-        }
+        async function checkCoupon() {
+  const input = document.getElementById('coupon-input').value.trim().toUpperCase();
+  const errorDiv = document.getElementById('coupon-error');
+  if (!input) {
+    errorDiv.textContent = 'Please enter a coupon code.';
+    return;
+  }
+  try {
+    const doc = await db.collection('coupons').doc(input).get();
+    if (!doc.exists) {
+      errorDiv.textContent = 'Invalid coupon code.';
+      return;
+    }
+    if (doc.data().isUsed) {
+      errorDiv.textContent = 'This coupon has already been used.';
+      return;
+    }
+    // Valid and unused
+    document.getElementById('coupon-section').style.display = 'none';
+    document.querySelector('.container').style.display = '';
+    sessionStorage.setItem('active_coupon', input);
+  } catch (e) {
+    errorDiv.textContent = 'Error checking coupon. Try again.';
+  }
+}
 
         // Hide products until coupon is entered
         window.addEventListener('DOMContentLoaded', function() {
