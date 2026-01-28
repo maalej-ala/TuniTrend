@@ -1222,6 +1222,36 @@ const db = firebase.firestore();
         });
 
         window.addEventListener('load', init);
+    
+    /* ================================
+   🔹 URL COUPON AUTO-FILL LOGIC
+   ================================ */
+
+function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+window.addEventListener('DOMContentLoaded', async function () {
+    // Hide products by default
+    document.querySelector('.container').style.display = 'none';
+
+    const couponFromUrl = getQueryParam('coupon');
+
+    if (couponFromUrl) {
+        const couponCode = couponFromUrl.trim().toUpperCase();
+
+        // Fill input
+        const input = document.getElementById('coupon-input');
+        input.value = couponCode;
+
+        // Save coupon
+        sessionStorage.setItem('active_coupon', couponCode);
+
+        // Auto-check coupon
+        await checkCoupon();
+    }
+});
     </script>
 </body>
 </html>
